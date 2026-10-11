@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="PragathiApi.Application/PragathiApi.Application.csproj" Id="12f26ee3-c179-47c5-8938-04fe7fd95110" />
+  <Project Path="PragathiApi.Domain/PragathiApi.Domain.csproj" Id="a3ff8758-41f2-4c96-8173-c03e55ed2e7c" />
+  <Project Path="PragathiApi.Infrastructure/PragathiApi.Infrastructure.csproj" Id="1a40c338-f73a-4e55-9d03-c38597591e60" />
+  <Project Path="PragathiApi/PragathiApi.csproj" />
+</Solution>
