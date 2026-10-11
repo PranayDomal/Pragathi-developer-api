@@ -1,30 +1,36 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using PragathiApi.Application.Interfaces;
 using PragathiApi.Application.Common;
 using PragathiApi.Application.Dtos;
-
 namespace PragathiApi.Controllers;
 
-// DEV MODE ONLY: there is no login, so every action returns 404 outside Development.
+// Protected by an admin ID + password (settings Admin:Id and Admin:Password).
+// If those settings are missing, every action returns 404, so the API stays switched off.
 [ApiController]
 [Route("api/admin")]
-public class AdminController(IAdminRepository admin, IWebHostEnvironment env) : ControllerBase
+[Authorize]
+public class AdminController(IAdminRepository admin) : ControllerBase
 {
+    // The login page calls this to check the ID and password: 204 = correct, 401 = wrong.
+    [HttpGet("ping")]
+    public IActionResult Ping() => NoContent();
+
     [HttpGet("leads")]
     public async Task<IActionResult> Leads(CancellationToken ct) =>
-        env.IsDevelopment() ? Ok(await admin.GetLeadsAsync(ct)) : NotFound();
+        Ok(await admin.GetLeadsAsync(ct));
 
     [HttpGet("activities")]
     public async Task<IActionResult> Activities(CancellationToken ct) =>
-        env.IsDevelopment() ? Ok(await admin.GetActivitiesAsync(ct)) : NotFound();
+        Ok(await admin.GetActivitiesAsync(ct));
 
     [HttpGet("visits")]
     public async Task<IActionResult> Visits(CancellationToken ct) =>
-        env.IsDevelopment() ? Ok(await admin.GetVisitsAsync(ct)) : NotFound();
+        Ok(await admin.GetVisitsAsync(ct));
 
     [HttpGet("configurations")]
     public async Task<IActionResult> Configurations(CancellationToken ct) =>
-        env.IsDevelopment() ? Ok(await admin.GetConfigurationsAsync(ct)) : NotFound();
+        Ok(await admin.GetConfigurationsAsync(ct));
 
 
     // ---------- Update ----------
@@ -53,10 +59,9 @@ public class AdminController(IAdminRepository admin, IWebHostEnvironment env) : 
     public Task<IActionResult> DeleteVisit(int id, CancellationToken ct) =>
         Run(() => admin.DeleteVisitAsync(id, ct));
 
-    // Shared: Development only, 204 on success, 404 if the row doesn't exist, 400 on bad values
+    // Shared: 204 on success, 404 if the row doesn't exist, 400 on bad values
     private async Task<IActionResult> Run(Func<Task<bool>> action)
     {
-        if (!env.IsDevelopment()) return NotFound();
         try
         {
             return await action() ? NoContent() : NotFound();
