@@ -1,8 +1,15 @@
 <Solution>
-  <Project Path="PragathiApi.Application/PragathiApi.Application.csproj" Id="12f26ee3-c179-47c5-8938-04fe7fd95110" />
-  <Project Path="PragathiApi.Auth/PragathiApi.Auth.csproj" Id="cd7fc87b-ad55-4b30-9d6e-162f17651622" />
-  <Project Path="PragathiApi.Domain/PragathiApi.Domain.csproj" Id="a3ff8758-41f2-4c96-8173-c03e55ed2e7c" />
-  <Project Path="PragathiApi.Gateway/PragathiApi.Gateway.csproj" Id="5d71c3b0-9a89-4262-a202-173895b9026f" />
-  <Project Path="PragathiApi.Infrastructure/PragathiApi.Infrastructure.csproj" Id="1a40c338-f73a-4e55-9d03-c38597591e60" />
-  <Project Path="PragathiApi/PragathiApi.csproj" />
+  <Folder Name="/Gateway/">
+    <Project Path="Gateway/PragathiApi.Gateway/PragathiApi.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/Services/" />
+  <Folder Name="/Services/Auth/">
+    <Project Path="Services/Auth/PragathiApi.Auth/PragathiApi.Auth.csproj" />
+  </Folder>
+  <Folder Name="/Services/Leads/">
+    <Project Path="Services/Leads/PragathiApi/PragathiApi.csproj" />
+    <Project Path="Services/Leads/PragathiApi.Application/PragathiApi.Application.csproj" />
+    <Project Path="Services/Leads/PragathiApi.Domain/PragathiApi.Domain.csproj" />
+    <Project Path="Services/Leads/PragathiApi.Infrastructure/PragathiApi.Infrastructure.csproj" />
+  </Folder>
 </Solution>
