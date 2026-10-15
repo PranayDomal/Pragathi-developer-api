@@ -6,6 +6,12 @@
   <Folder Name="/Services/Auth/">
     <Project Path="Services/Auth/PragathiApi.Auth/PragathiApi.Auth.csproj" />
   </Folder>
+  <Folder Name="/Services/Admin/">
+    <Project Path="Services/Admin/Pragathi.Admin.Api/Pragathi.Admin.Api.csproj" />
+    <Project Path="Services/Admin/Pragathi.Admin.Application/Pragathi.Admin.Application.csproj" />
+    <Project Path="Services/Admin/Pragathi.Admin.Domain/Pragathi.Admin.Domain.csproj" />
+    <Project Path="Services/Admin/Pragathi.Admin.Infrastructure/Pragathi.Admin.Infrastructure.csproj" />
+  </Folder>
   <Folder Name="/Services/Leads/">
     <Project Path="Services/Leads/PragathiApi/PragathiApi.csproj" />
     <Project Path="Services/Leads/PragathiApi.Application/PragathiApi.Application.csproj" />
