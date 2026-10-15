@@ -1,0 +1,6 @@
+@PragathiApi.Auth_HostAddress = http://localhost:5238
+
+GET {{PragathiApi.Auth_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

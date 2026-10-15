@@ -24,11 +24,6 @@ builder.Services.AddInfrastructure(
     ?? throw new InvalidOperationException("ConnectionStrings:Default is not set."));
 builder.Services.AddScoped<ISubmissionService, SubmissionService>();
 
-// Let the Angular site call this API
-var origins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>() ?? ["http://localhost:4200"];
-builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
-    p.WithOrigins(origins).AllowAnyHeader().WithMethods("GET", "POST", "PUT", "DELETE")));
-
 // Admin login: tokens signed with Jwt:Key. If the key is missing, a random one is used, so no token can ever be valid.
 var jwtKey = builder.Configuration["Jwt:Key"];
 var keyBytes = string.IsNullOrEmpty(jwtKey) ? RandomNumberGenerator.GetBytes(32) : Encoding.UTF8.GetBytes(jwtKey);
@@ -66,7 +61,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseCors();
 app.UseRateLimiter();
 
 app.UseAuthentication();

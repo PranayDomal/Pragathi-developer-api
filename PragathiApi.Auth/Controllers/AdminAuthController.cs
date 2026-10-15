@@ -2,12 +2,11 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 
-namespace PragathiApi.Controllers;
+namespace PragathiApi.Auth.Controllers;
 
 [ApiController]
 [Route("api/admin")]
@@ -16,7 +15,6 @@ public class AdminAuthController(IConfiguration config) : ControllerBase
     public record LoginRequest(string? Id, string? Password);
 
     [HttpPost("login")]
-    [AllowAnonymous]
     [EnableRateLimiting("admin-login")]
     public IActionResult Login(LoginRequest body)
     {
@@ -24,7 +22,7 @@ public class AdminAuthController(IConfiguration config) : ControllerBase
         var password = config["Admin:Password"];
         var key = config["Jwt:Key"];
 
-        // Not configured = admin switched off.
+        // Not configured = login switched off.
         if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(key))
             return NotFound();
 
