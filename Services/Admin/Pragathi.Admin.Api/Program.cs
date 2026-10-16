@@ -3,7 +3,10 @@ using Pragathi.Admin.Application.Services;
 using Pragathi.Admin.Infrastructure;
 using Pragathi.Admin.Application.Dtos;
 using Pragathi.Admin.Domain.Enums;
-
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +18,30 @@ var connectionString = builder.Configuration.GetConnectionString("Default")
 
 builder.Services.AddInfrastructure(connectionString);
 builder.Services.AddScoped<IAdminUserService, AdminUserService>();
+
+
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Jwt:Key is missing.");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(o =>
+    {
+        o.MapInboundClaims = false;   // keep the claim names exactly as in the token
+        o.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = "pragathi-api",
+            ValidateAudience = true,
+            ValidAudience = "pragathi-admin",
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ClockSkew = TimeSpan.FromMinutes(1),
+            NameClaimType = ClaimTypes.Name,   // the names Auth really wrote
+            RoleClaimType = ClaimTypes.Role        
+        };
+    });
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -33,6 +60,10 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
