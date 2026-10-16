@@ -7,6 +7,8 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using Pragathi.Admin.Application.Interfaces;
+using Pragathi.Admin.Infrastructure.Clients;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -42,6 +44,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 builder.Services.AddAuthorization();
+
+builder.Services.AddHttpClient<ILeadsClient, HttpLeadsClient>((sp, client) =>
+{
+    var cfg = sp.GetRequiredService<IConfiguration>();
+    client.BaseAddress = new Uri(cfg["Services:Leads:BaseUrl"]!);
+    client.DefaultRequestHeaders.Add("X-Service-Key", cfg["Internal:ServiceKey"] ?? "");   // the secret badge
+    client.Timeout = TimeSpan.FromSeconds(60);   // free Render services can take ~50s to wake up
+});
 
 var app = builder.Build();
 
