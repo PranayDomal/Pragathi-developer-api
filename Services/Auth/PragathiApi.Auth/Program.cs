@@ -13,6 +13,14 @@ builder.Services.AddRateLimiter(o =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
 });
 
+builder.Services.AddHttpClient("admin", (sp, client) =>
+{
+    var cfg = sp.GetRequiredService<IConfiguration>();
+    client.BaseAddress = new Uri(cfg["Services:Admin:BaseUrl"]!);
+    client.DefaultRequestHeaders.Add("X-Service-Key", cfg["Internal:ServiceKey"] ?? "");
+    client.Timeout = TimeSpan.FromSeconds(60);   // Render free services can take ~50s to wake up
+});
+
 var app = builder.Build();
 
 app.UseRateLimiter();
