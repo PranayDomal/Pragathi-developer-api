@@ -1,119 +1,90 @@
-# Pragathi Developers API
+# Pragathi Developers – Backend (Microservices)
 
-Backend for the **Green Woods** website by Pragathi Developers (Bachupally, Hyderabad). It saves the website's enquiries, site visit requests, floor plan and brochure downloads, contact messages and chat conversations as leads, and has a protected admin API for viewing and editing them.
+Backend for the **Green Woods** website (a copy of pragathidevelopers.in).
+It is split into small services behind one front door (the Gateway).
 
-- **Frontend:** [Pragathi-developer](https://github.com/PranayDomal/Pragathi-developer) (Angular, hosted on Vercel)
-- **API:** .NET 8 Web API (hosted on Render)
-- **Database:** PostgreSQL (hosted on Neon)
+## Architecture
 
-## How it works
+```
+Browser (Angular, Vercel)
+        │
+        ▼
+   Gateway (YARP)  ──►  /api/admin/login  ──►  Auth
+        │             ──►  /api/admin/**    ──►  Admin  ──►  Leads (internal)
+        └─────────────►  /api/**            ──►  Leads
+```
 
-Every form on the website sends one request to `POST /api/leads`. The API:
+| Service | What it does | Layers | Database |
+|---|---|---|---|
+| **Gateway** | Single public entry point. Routes requests, handles CORS. | – | – |
+| **Auth** | Checks a login with Admin and issues a JWT (2 h). | none | none |
+| **Admin** | Admin users and roles, plus view/edit/delete of leads for the admin panel. | Onion (Api, Application, Domain, Infrastructure) | Own Postgres DB (`AdminUsers`) |
+| **Leads** | Receives website form submissions (enquiries, visits, activities, configurations). | Onion | Postgres (leads data) |
 
-1. Cleans the phone number to international format (India `+91` by default).
-2. Finds the lead with that phone number, or creates a new one.
-3. Records what the visitor did as an *activity*. A site visit also creates a *visit* with date, time slot and visitors.
-4. Skips saving, and answers `alreadyReceived: true`, if the same lead repeats the same activity within 5 minutes.
+### Roles (Admin panel)
 
-Activity types: `Enquiry`, `SiteVisit`, `FloorPlanDownload`, `BrochureDownload`, `ContactMessage`, `Chat`.
-
-## Tech stack
-
-- .NET 8, ASP.NET Core Web API
-- Entity Framework Core 8 with Npgsql (PostgreSQL)
-- JWT bearer authentication for the admin API
-- Built-in rate limiting
-- Docker (deployed on Render)
-
-## Project structure (onion architecture)
-
-| Project | Purpose |
+| Role | Can do |
 |---|---|
-| `PragathiApi.Domain` | Entities and enums (Lead, Activity, Visit, Configuration) |
-| `PragathiApi.Application` | DTOs, interfaces, submission logic, phone helper |
-| `PragathiApi.Infrastructure` | EF Core `DbContext`, migrations, repositories |
-| `PragathiApi` | Controllers, `Program.cs`, startup settings |
+| Viewer | View everything |
+| Editor | View, edit and delete leads |
+| Superuser | Everything above, plus manage users (add, change role, switch on/off, reset password, delete) |
 
-Dependencies point inward: API → Infrastructure → Application → Domain.
+A switched-off account cannot sign in and sees a clear message. Existing sessions keep working until the token expires (2 h).
 
-## Database tables
+### How services trust each other
 
-| Table | Contents |
+- The browser talks only to the Gateway.
+- **JWT**: signed by Auth, checked by Admin (`Jwt__Key` must be identical in both).
+- **Service key**: Leads, Admin and Auth send each other `X-Service-Key` (`Internal__ServiceKey` must be identical in all three) so only our own services can call the internal endpoints.
+
+## Repository layout
+
+```
+Gateway/PragathiApi.Gateway
+Services/
+  Admin/{Pragathi.Admin.Api, .Application, .Domain, .Infrastructure}
+  Auth/PragathiApi.Auth
+  Leads/{PragathiApi, PragathiApi.Application, PragathiApi.Domain, PragathiApi.Infrastructure}
+```
+
+Each service folder has its own `Dockerfile`.
+
+## Configuration (environment variables)
+
+Use `__` for nested settings. **Never commit real values.**
+
+| Service | Variables |
 |---|---|
-| `Leads` | One row per person, with a unique phone number |
-| `Activities` | Everything a lead did (type, message, detail, home loan answer, chosen configuration) |
-| `Visits` | Site visit details for `SiteVisit` activities |
-| `Configurations` | The five home types (2 BHK, 3 BHK, Sky Villa, Garden Villa, Corner Villa) |
+| Leads | `ConnectionStrings__Default`, `Internal__ServiceKey` |
+| Admin | database connection string, `Jwt__Key`, `Internal__ServiceKey`, `Services__Leads__BaseUrl`, `Seed__SuperuserId`, `Seed__SuperuserPassword` |
+| Auth | `Jwt__Key`, `Internal__ServiceKey`, `Services__Admin__BaseUrl` |
+| Gateway | `ReverseProxy__Clusters__{auth\|admin\|leads}__Destinations__d1__Address`, `Cors__Origins__0` (frontend URL) |
+| All on Render | `PORT=8080`, `ASPNETCORE_FORWARDEDHEADERS_ENABLED=true` (Auth, Gateway, Leads) |
 
-## API endpoints
-
-### Public
-
-| Method | Route | Description |
-|---|---|---|
-| `GET` | `/api/health` | Health check, returns `{"status":"ok"}` |
-| `POST` | `/api/leads` | Saves a form submission (limit: 20 requests per minute per visitor) |
-
-### Admin (needs a JWT token)
-
-| Method | Route | Description |
-|---|---|---|
-| `POST` | `/api/admin/login` | Sign in with the admin ID and password, returns a token (limit: 10 attempts per minute) |
-| `GET` | `/api/admin/ping` | Checks that the token is valid |
-| `GET` | `/api/admin/leads`, `/activities`, `/visits`, `/configurations` | List records, newest first |
-| `PUT` | `/api/admin/leads/{id}`, `/activities/{id}`, `/visits/{id}` | Edit a record |
-| `DELETE` | `/api/admin/leads/{id}`, `/activities/{id}`, `/visits/{id}` | Delete a record (deleting a lead also deletes its activities and visits) |
-
-Send the token as `Authorization: Bearer <token>`. If the admin settings below are missing, the admin API stays switched off and returns 404. Configurations are read-only.
-
-## Configuration
-
-Settings are read from environment variables (use `__` for `:`) or from user-secrets when developing. Never commit real values.
-
-| Setting | Purpose |
-|---|---|
-| `ConnectionStrings__Default` | PostgreSQL connection string (Npgsql format) |
-| `Cors__Origins__0` | Website address allowed to call the API, with no trailing `/` (add `Cors__Origins__1`, etc. for more) |
-| `Admin__Id` | Admin sign-in ID |
-| `Admin__Password` | Admin sign-in password |
-| `Jwt__Key` | Secret used to sign tokens (a long random value) |
-| `Jwt__Issuer` | Token issuer, for example `pragathi-api` |
-| `Jwt__Audience` | Token audience, for example `pragathi-admin` |
-| `PORT` | Port the container listens on (`8080` on Render) |
-| `ASPNETCORE_FORWARDEDHEADERS_ENABLED` | Set to `true` behind a proxy so each visitor's real address is seen |
+On first start, Admin applies its migrations and creates the first Superuser from the `Seed__...` values when no users exist.
 
 ## Run locally
 
-Requirements: .NET 8 SDK and PostgreSQL.
+1. Set the values above with `dotnet user-secrets` (or `appsettings.Development.json`, which is git-ignored).
+2. Start Leads, Admin, Auth and Gateway (Visual Studio multiple startup projects, or `dotnet run` in each).
+3. The Gateway's local address is `http://localhost:5080`.
 
-```powershell
-# 1. Store settings outside the code (run from the solution folder)
-dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Database=pragathi;Username=postgres;Password=YOUR_PASSWORD" --project PragathiApi
-dotnet user-secrets set "Admin:Id" "admin" --project PragathiApi
-dotnet user-secrets set "Admin:Password" "admin" --project PragathiApi
-dotnet user-secrets set "Jwt:Key" "A_LONG_RANDOM_VALUE_AT_LEAST_32_CHARACTERS" --project PragathiApi
-dotnet user-secrets set "Jwt:Issuer" "pragathi-api" --project PragathiApi
-dotnet user-secrets set "Jwt:Audience" "pragathi-admin" --project PragathiApi
+Health check on every service: `GET /api/health`.
 
-# 2. Create the tables (Visual Studio > Package Manager Console)
-Update-Database -Project PragathiApi.Infrastructure -StartupProject PragathiApi
+## Deployment (Render, free plan)
 
-# 3. Run
-dotnet run --project PragathiApi
-```
+Four web services, all Docker, branch `main`:
 
-The API listens on `http://localhost:5080`. In Development, Swagger is available at `/swagger`. By default CORS allows `http://localhost:4200` (the Angular dev server).
+| Service | Root directory | Dockerfile |
+|---|---|---|
+| pragathi-leads | `Services/Leads` | `Services/Leads/Dockerfile` |
+| pragathi-admin | `Services/Admin` | `Services/Admin/Dockerfile` |
+| pragathi-auth | `Services/Auth` | `Services/Auth/Dockerfile` |
+| pragathi-gateway | `Gateway` | `Gateway/Dockerfile` |
 
-## Deployment
+- Health check path: `/api/health` (leave empty on the Gateway so checks don't wake Leads).
+- **Cold starts:** free services sleep after ~15 minutes idle and take ~50 s to wake. The first login after a quiet period can take 1 to 1.5 minutes while Gateway, Auth and Admin wake in turn.
 
-- **Database:** Neon (PostgreSQL). Apply migrations once with `Update-Database -Connection "<Npgsql connection string>"`.
-- **API:** Render web service using the `Dockerfile` in this repo, region next to the database. Add the settings above as environment variables. Render redeploys on every push to `main`.
-- **Health check path on Render:** `/api/health`
+## Tech
 
-Note: on free hosting tiers the API sleeps when idle, so the first request can take up to a minute.
-
-## Security notes
-
-- Secrets live only in environment variables or user-secrets, never in the repo.
-- Phone numbers are unique per lead, and duplicate submissions inside 5 minutes are ignored.
-- Admin passwords are compared in constant time, tokens expire after 2 hours, and sign-in attempts are rate limited.
+.NET 8, ASP.NET Core, EF Core 8 + Npgsql (Neon Postgres), YARP, JWT (HS256), Docker.
