@@ -49,6 +49,8 @@ public class AdminAuthController : ControllerBase
 
         if (response.StatusCode == HttpStatusCode.Unauthorized)
             return Unauthorized(new { message = "Invalid ID or password." });
+        if (response.StatusCode == HttpStatusCode.Forbidden)
+            return StatusCode(403, new { message = "This account is switched off. Please contact your administrator." });
         if (!response.IsSuccessStatusCode)
             return StatusCode(503, new { message = "Login service is unavailable. Please try again." });
 

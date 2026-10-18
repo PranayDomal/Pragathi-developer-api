@@ -96,7 +96,8 @@ public class AdminUserService : IAdminUserService
             _hasher.Hash(r.Password);   // do the same work, so response time doesn't reveal "no such user"
             return null;
         }
-        if (!user.IsActive || !_hasher.Verify(r.Password, user.PasswordHash)) return null;
+        if (!_hasher.Verify(r.Password, user.PasswordHash)) return null;   // wrong password: same answer as before
+        if (!user.IsActive) throw new AccountDisabledException();          // right password, but switched off
 
         return new VerifyCredentialsResult(user.LoginId, user.Name, user.Role);
     }

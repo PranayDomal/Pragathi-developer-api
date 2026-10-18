@@ -1,8 +1,9 @@
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.AspNetCore.Mvc;
 using Pragathi.Admin.Application.Dtos;
+using Pragathi.Admin.Application.Exceptions;
 using Pragathi.Admin.Application.Services;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace Pragathi.Admin.Api.Controllers;
 
@@ -27,8 +28,15 @@ public class InternalAuthController : ControllerBase
         var given = Request.Headers["X-Service-Key"].ToString();
         if (string.IsNullOrEmpty(expected) || !Same(given, expected)) return Unauthorized();
 
-        var result = await _users.VerifyAsync(request);
-        return result is null ? Unauthorized() : Ok(result);
+        try
+        {
+            var result = await _users.VerifyAsync(request);
+            return result is null ? Unauthorized() : Ok(result);
+        }
+        catch (AccountDisabledException)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
     }
 
     private static bool Same(string a, string b)
