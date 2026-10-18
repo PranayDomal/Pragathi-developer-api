@@ -3,11 +3,6 @@ using System.Threading.RateLimiting;
 using PragathiApi.Application.Interfaces;
 using PragathiApi.Application.Services;
 using PragathiApi.Infrastructure;
-using System.Security.Cryptography;
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,33 +19,13 @@ builder.Services.AddInfrastructure(
     ?? throw new InvalidOperationException("ConnectionStrings:Default is not set."));
 builder.Services.AddScoped<ISubmissionService, SubmissionService>();
 
-// Admin login: tokens signed with Jwt:Key. If the key is missing, a random one is used, so no token can ever be valid.
-var jwtKey = builder.Configuration["Jwt:Key"];
-var keyBytes = string.IsNullOrEmpty(jwtKey) ? RandomNumberGenerator.GetBytes(32) : Encoding.UTF8.GetBytes(jwtKey);
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(o => o.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidateAudience = true,
-        ValidAudience = builder.Configuration["Jwt:Audience"],
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
-        ValidateLifetime = true,
-        ClockSkew = TimeSpan.FromMinutes(1),
-    });
-builder.Services.AddAuthorization();
-
-// Basic spam protection: 20 submissions a minute per visitor
+// Basic spam protection: 10 submissions a minute per visitor
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
     o.AddPolicy("submit", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
-    o.AddPolicy("admin-login", ctx => RateLimitPartition.GetFixedWindowLimiter(
-    ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-    _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) }));
 });
 
 var app = builder.Build();
@@ -62,9 +37,6 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseRateLimiter();
-
-app.UseAuthentication();
-app.UseAuthorization();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapControllers();

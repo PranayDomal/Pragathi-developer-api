@@ -9,6 +9,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
 using Pragathi.Admin.Application.Interfaces;
 using Pragathi.Admin.Infrastructure.Clients;
+using Microsoft.EntityFrameworkCore;
+using Pragathi.Admin.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,6 +60,7 @@ var app = builder.Build();
 // Create the first superuser if the table is empty
 using (var scope = app.Services.CreateScope())
 {
+    scope.ServiceProvider.GetRequiredService<AdminDb>().Database.Migrate();
     var users = scope.ServiceProvider.GetRequiredService<IAdminUserService>();
     var seedId = app.Configuration["Seed:SuperuserId"];
     var seedPassword = app.Configuration["Seed:SuperuserPassword"];
